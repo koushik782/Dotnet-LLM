@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${DB_PASSWORD:-DevAssistant123!}
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - devassistant-network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./DevAssistant.Api
+      dockerfile: Dockerfile
+    ports:
+      - "7001:80"
+      - "7002:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=DevAssistantDb;User Id=sa;Password=${DB_PASSWORD:-DevAssistant123!};TrustServerCertificate=true
+      - Ollama__BaseUrl=http://ollama:11434
+      - Ollama__DefaultModel=${OLLAMA_MODEL:-mistral}
+    depends_on:
+      - sqlserver
+      - ollama
+    networks:
+      - devassistant-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./DevAssistant.Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - devassistant-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Ollama (Local LLM)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - devassistant-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.proxy.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - devassistant-network
+    restart: unless-stopped
+    profiles:
+      - proxy
+
+volumes:
+  sqlserver_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  devassistant-network:
+    driver: bridge 

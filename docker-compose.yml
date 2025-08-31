@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=DevAssistant123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - devassistant-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./DevAssistant.Api
+      dockerfile: Dockerfile
+    ports:
+      - "7001:80"
+      - "7002:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=DevAssistantDb;User Id=sa;Password=DevAssistant123!;TrustServerCertificate=true
+      - Ollama__BaseUrl=http://ollama:11434
+    depends_on:
+      - sqlserver
+      - ollama
+    networks:
+      - devassistant-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./DevAssistant.Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - devassistant-network
+
+  # Ollama (Local LLM)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - devassistant-network
+    # Uncomment the following lines to pull specific models on startup
+    # command: >
+    #   sh -c "ollama pull mistral && ollama pull codellama && ollama serve"
+
+volumes:
+  sqlserver_data:
+  ollama_data:
+
+networks:
+  devassistant-network:
+    driver: bridge 

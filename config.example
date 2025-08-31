@@ -1,0 +1,23 @@
+# DevAssistant Environment Configuration
+# Copy this file to .env and update the values as needed
+
+# Database Configuration
+DB_PASSWORD=DevAssistant123!
+
+# Ollama Configuration
+OLLAMA_MODEL=mistral
+OLLAMA_BASE_URL=http://localhost:11434
+
+# API Configuration
+API_BASE_URL=https://localhost:7001
+FRONTEND_URL=http://localhost:4200
+
+# Development Settings
+ASPNETCORE_ENVIRONMENT=Development
+ENABLE_SWAGGER=true
+ENABLE_CORS=true
+
+# Production Settings (uncomment for production)
+# ASPNETCORE_ENVIRONMENT=Production
+# ENABLE_SWAGGER=false
+# ENABLE_CORS=false 
